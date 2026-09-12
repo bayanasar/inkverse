@@ -112,6 +112,15 @@ a washed-out panel.
 gradle :app:assembleRelease
 ```
 
+Kotlin, no dependencies at all — not even AndroidX. R8 is on for release builds
+because Kotlin's stdlib is otherwise most of the APK (2 MB before, 38 KB after).
+
+Flutter is not an option here and it is worth saying why: the app *is* an
+`AccessibilityService`, a platform class the system instantiates from the manifest,
+and the overlay is a `TYPE_ACCESSIBILITY_OVERLAY` window owned by it. Neither can be
+expressed in Dart; a Flutter build would still need this same Kotlin underneath, plus
+a platform channel shuttling every captured bitmap in and out of the Dart VM.
+
 Tagging `v*` builds and publishes a signed APK. Without the `KEYSTORE_BASE64`,
 `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD` secrets, CI signs with a throwaway
 key — installable, but upgrades over an older build will be refused.
