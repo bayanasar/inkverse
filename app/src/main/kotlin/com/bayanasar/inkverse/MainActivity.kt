@@ -114,9 +114,7 @@ class MainActivity : Activity() {
         })
 
         root.addView(label("\nUpdates"))
-        updateStatus = TextView(this).apply {
-            text = "Version ${packageManager.getPackageInfo(packageName, 0).versionName}"
-        }
+        updateStatus = TextView(this).apply { text = "Version ${version()}" }
         root.addView(updateStatus)
         updateButton = Button(this).apply {
             text = "Check for updates"
@@ -161,23 +159,47 @@ class MainActivity : Activity() {
         )
     }
 
+    /**
+     * E-Ink does not reliably repaint a one-line text change, so the result also has
+     * to move the button — a big filled element the panel will redraw. A silent
+     * check still reports its outcome; an update that quietly did nothing is
+     * indistinguishable from a broken button.
+     */
     private fun checkForUpdate(silent: Boolean) {
-        if (!silent) updateStatus.text = "Checking…"
+        updateButton.isEnabled = false
+        updateButton.text = "Checking…"
+        updateStatus.text = "Contacting GitHub…"
+
         Updater.check(
             this,
             onResult = { release ->
                 pending = release
+                updateButton.isEnabled = true
+                val now = timestamp()
                 if (release != null) {
-                    updateStatus.text = "Version ${release.version} is available."
+                    updateStatus.text = "Version ${release.version} is available  ·  $now"
                     updateButton.text = "Download and install ${release.version}"
-                } else if (!silent) {
-                    updateStatus.text =
-                        "Up to date (${packageManager.getPackageInfo(packageName, 0).versionName})."
+                } else {
+                    updateStatus.text = "Up to date (${version()})  ·  checked $now"
+                    updateButton.text = "Check for updates"
                 }
             },
-            onError = { message -> if (!silent) updateStatus.text = "Check failed: $message" },
+            onError = { message ->
+                updateButton.isEnabled = true
+                updateButton.text = "Retry check"
+                val hint = if (message.contains("resolve host", true) ||
+                    message.contains("Unable", true)
+                ) " — is Wi-Fi on?" else ""
+                updateStatus.text = "Check failed: $message$hint"
+            },
         )
     }
+
+    private fun version(): String =
+        packageManager.getPackageInfo(packageName, 0).versionName ?: "?"
+
+    private fun timestamp(): String = android.text.format.DateFormat
+        .getTimeFormat(this).format(java.util.Date())
 
     /**
      * The reading screen is white when nothing is inverted, so the app follows the
