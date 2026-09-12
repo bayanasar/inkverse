@@ -1,0 +1,76 @@
+name: Release APK
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+
+      - name: Build release APK
+        run: gradle :app:assembleRelease --no-daemon
+
+      # Releases are installed by sideloading, so the APK still has to be signed.
+      # With no keystore secret configured we sign with a generated key: good enough
+      # to install, but the signature changes between runs, which means an upgrade
+      # install will be refused and the app has to be uninstalled first.
+      - name: Sign APK
+        id: sign
+        run: |
+          set -e
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          IN=app/build/outputs/apk/release/app-release-unsigned.apk
+          [ -f "$IN" ] || IN=app/build/outputs/apk/release/app-release.apk
+          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release.jks
+            STOREPASS='${{ secrets.KEYSTORE_PASSWORD }}'
+            ALIAS='${{ secrets.KEY_ALIAS }}'
+            KEYPASS='${{ secrets.KEY_PASSWORD }}'
+            echo "stable-key=true" >> "$GITHUB_OUTPUT"
+          else
+            keytool -genkeypair -keystore release.jks -alias inkverse \
+              -storepass inkverse -keypass inkverse -keyalg RSA -keysize 2048 \
+              -validity 10000 -dname "CN=Inkverse"
+            STOREPASS=inkverse; ALIAS=inkverse; KEYPASS=inkverse
+            echo "stable-key=false" >> "$GITHUB_OUTPUT"
+          fi
+          "$BT/zipalign" -f 4 "$IN" aligned.apk
+          "$BT/apksigner" sign --ks release.jks --ks-pass "pass:$STOREPASS" \
+            --key-pass "pass:$KEYPASS" --ks-key-alias "$ALIAS" \
+            --out inkverse-${{ github.ref_name }}.apk aligned.apk
+          "$BT/apksigner" verify --print-certs inkverse-${{ github.ref_name }}.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: inkverse-apk
+          path: inkverse-*.apk
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: inkverse-*.apk
+          generate_release_notes: true
+          body: |
+            Sideload this APK on a BOOX (or any Android 14+) device, then enable
+            **Inkverse** under Settings → Accessibility.
+
+            ${{ steps.sign.outputs.stable-key == 'false' && '> Signed with a per-build throwaway key, so upgrading over a previous version will fail — uninstall the old one first. Set the `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS` and `KEY_PASSWORD` secrets for a stable signature.' || '' }}

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Follows the system by default: values-night/ supplies the dark variant. -->
+    <style name="Theme.Inkverse" parent="@android:style/Theme.DeviceDefault.Light"/>
+    <!-- Explicit choices, used when the user overrides "follow system". -->
+    <style name="Theme.Inkverse.Light" parent="@android:style/Theme.DeviceDefault.Light"/>
+    <style name="Theme.Inkverse.Dark" parent="@android:style/Theme.DeviceDefault"/>
+</resources>
