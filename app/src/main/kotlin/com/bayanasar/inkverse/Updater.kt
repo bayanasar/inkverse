@@ -30,7 +30,7 @@ import java.util.concurrent.Executors
 object Updater {
 
     private const val API = "https://api.github.com/repos/bayanasar/inkverse/releases/latest"
-    private const val INSTALL_ACTION = "com.bayanasar.inkverse.INSTALL_RESULT"
+    const val INSTALL_ACTION = "com.bayanasar.inkverse.INSTALL_RESULT"
 
     private val io = Executors.newSingleThreadExecutor()
     private val ui = Handler(Looper.getMainLooper())
@@ -153,7 +153,8 @@ object Updater {
                 conn.disconnect()
             }
 
-            val intent = Intent(INSTALL_ACTION).setPackage(context.packageName)
+            val intent = Intent(INSTALL_ACTION)
+                .setClass(context, InstallResultReceiver::class.java)
             val pending = PendingIntent.getBroadcast(
                 context, sessionId, intent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,

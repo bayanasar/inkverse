@@ -33,6 +33,12 @@
                 android:resource="@xml/accessibility_service_config"/>
         </service>
 
+        <receiver android:name=".InstallResultReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="com.bayanasar.inkverse.INSTALL_RESULT"/>
+            </intent-filter>
+        </receiver>
+
         <receiver android:name=".DiagReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="com.bayanasar.inkverse.DIAG"/>
