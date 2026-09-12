@@ -1,0 +1,2 @@
+The launcher icon is now a taijitu — a mark where each half already carries a seed
+of its opposite, which is the app in one image.

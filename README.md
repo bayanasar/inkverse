@@ -1,3 +1,5 @@
+<img src="docs/logo.png" width="160" align="right" alt="Inkverse">
+
 # Inkverse
 
 Night-mode colour inversion for BOOX e-ink tablets, for people who read scanned
