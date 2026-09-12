@@ -40,14 +40,17 @@ class InstallResultReceiver : BroadcastReceiver() {
 
             PackageInstaller.STATUS_SUCCESS -> {
                 Log.i(TAG, "update installed")
-                Toast.makeText(context, "Inkverse updated", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, R.string.toast_updated, Toast.LENGTH_LONG).show()
             }
 
             else -> {
                 Log.w(TAG, "install failed status=$status message=$message")
                 Toast.makeText(
                     context,
-                    "Update failed: ${message ?: "status $status"}",
+                    context.getString(
+                        R.string.toast_update_failed,
+                        message ?: "status $status",
+                    ),
                     Toast.LENGTH_LONG,
                 ).show()
             }

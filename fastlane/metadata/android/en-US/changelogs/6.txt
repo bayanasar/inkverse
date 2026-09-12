@@ -1,0 +1,3 @@
+Replaces the placeholder launcher icon — it was a stock Android system drawable —
+with a real one: a disc split into ink and paper halves, with text lines that flip
+colour as they cross the divide.

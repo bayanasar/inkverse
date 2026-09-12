@@ -64,7 +64,7 @@ object Updater {
                 install(context, release, onProgress)
                 // The system installer UI takes over from here; success is reported
                 // by the session, not by this call returning.
-                ui.post { onDone(true, "Confirm the install when the system asks.") }
+                ui.post { onDone(true, context.getString(R.string.status_confirm)) }
             } catch (e: Exception) {
                 Log.e(TAG, "update failed: $e")
                 ui.post { onDone(false, e.message ?: e.javaClass.simpleName) }

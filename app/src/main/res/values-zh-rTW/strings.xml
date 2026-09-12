@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="acc_desc">在最前面的應用程式上覆蓋一層完全不透明的反色畫面，而手寫筆與觸控會直接穿透到底下的應用程式。之所以需要無障礙權限，是因為只有受信任的覆蓋層才能同時做到不透明與不攔截觸控；而且在這類裝置上，單一視窗截圖是唯一不會把覆蓋層本身也拍進去的擷取方式。</string>
+
+    <string name="hint_overlay">覆蓋層是不透明的，所以你在本程式裡時它會自動隱藏，離開後自動回來。手寫筆與觸控一律穿透到底下的應用程式。</string>
+
+    <string name="section_mode">模式</string>
+    <string name="mode_passthrough">關閉／原樣顯示</string>
+    <string name="mode_luma">灰階反色（電子紙最佳）</string>
+    <string name="mode_rgb">RGB 反色（照片會變負片）</string>
+    <string name="mode_shaped">灰階反色 ＋ 色階</string>
+
+    <string name="section_levels">色階（「＋色階」模式使用）</string>
+    <string name="level_black">黑場</string>
+    <string name="level_white">白場</string>
+
+    <string name="section_appearance">外觀</string>
+    <string name="theme_system">跟隨系統</string>
+    <string name="theme_light">淺色</string>
+    <string name="theme_dark">深色</string>
+
+    <string name="section_updates">更新</string>
+    <string name="btn_accessibility">無障礙設定</string>
+    <string name="btn_open_accessibility">開啟無障礙設定</string>
+    <string name="btn_start">開始</string>
+    <string name="btn_stop">停止</string>
+    <string name="btn_check">檢查更新</string>
+    <string name="btn_checking">檢查中…</string>
+    <string name="btn_retry_check">重新檢查</string>
+    <string name="btn_retry_update">重新更新</string>
+    <string name="btn_install">下載並安裝 %1$s</string>
+    <string name="chk_autocheck">啟動時自動檢查</string>
+
+    <string name="status_acc_off">無障礙服務未啟用。\n請在「無障礙設定」中啟用 Inkverse —— 只有這樣，覆蓋層才能既完全不透明又讓觸控穿透。</string>
+    <string name="status_running">執行中。離開本程式即可看到反色畫面。</string>
+    <string name="status_ready">已就緒。</string>
+    <string name="status_version">版本 %1$s</string>
+    <string name="status_contacting">正在連線 GitHub…</string>
+    <string name="status_available">有新版本 %1$s  ·  %2$s</string>
+    <string name="status_uptodate">已是最新版（%1$s）  ·  檢查於 %2$s</string>
+    <string name="status_check_failed">檢查失敗：%1$s%2$s</string>
+    <string name="status_wifi_hint"> —— Wi-Fi 開了嗎？</string>
+    <string name="status_downloading">正在下載 %1$s… %2$d%%</string>
+    <string name="status_confirm">系統詢問時請確認安裝。</string>
+    <string name="toast_updated">Inkverse 已更新</string>
+    <string name="toast_update_failed">更新失敗：%1$s</string>
+</resources>

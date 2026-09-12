@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Paper, so the ink half of the mark never merges into a dark launcher. -->
+    <color name="ic_launcher_background">#E9E6DF</color>
+</resources>

@@ -12,8 +12,8 @@ android {
         // takeScreenshotOfWindow() is API 34; the whole approach depends on it.
         minSdk = 34
         targetSdk = 35
-        versionCode = 5
-        versionName = "0.1.5"
+        versionCode = 6
+        versionName = "0.1.6"
     }
 
     buildTypes {

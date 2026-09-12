@@ -73,17 +73,15 @@ class MainActivity : Activity() {
         root.addView(toggle)
 
         root.addView(TextView(this).apply {
-            text = "\nThe overlay is opaque, so it hides itself while you are in this app " +
-                "and comes back when you leave. Pen and touch always pass through to the " +
-                "app underneath.\n"
+            text = "\n" + getString(R.string.hint_overlay) + "\n"
         })
 
-        root.addView(label("Mode"))
+        root.addView(label(getString(R.string.section_mode)))
         modes = RadioGroup(this).apply {
-            addOption(this, "Off / passthrough", OverlayView.MODE_PASSTHROUGH)
-            addOption(this, "Grayscale invert  (best for E-Ink)", OverlayView.MODE_LUMA_INVERT)
-            addOption(this, "RGB invert  (photos go negative)", OverlayView.MODE_RGB_INVERT)
-            addOption(this, "Grayscale invert + levels", OverlayView.MODE_SHAPED)
+            addOption(this, getString(R.string.mode_passthrough), OverlayView.MODE_PASSTHROUGH)
+            addOption(this, getString(R.string.mode_luma), OverlayView.MODE_LUMA_INVERT)
+            addOption(this, getString(R.string.mode_rgb), OverlayView.MODE_RGB_INVERT)
+            addOption(this, getString(R.string.mode_shaped), OverlayView.MODE_SHAPED)
             check(prefs.getInt(KEY_MODE, OverlayView.MODE_LUMA_INVERT))
             setOnCheckedChangeListener { _, id ->
                 prefs.edit().putInt(KEY_MODE, id).apply()
@@ -92,15 +90,15 @@ class MainActivity : Activity() {
         }
         root.addView(modes)
 
-        root.addView(label("\nLevels  (used by the \"+ levels\" mode)"))
-        blackBar = slider(root, "black point", prefs.getInt(KEY_BLACK, 0))
-        whiteBar = slider(root, "white point", prefs.getInt(KEY_WHITE, 255))
+        root.addView(label("\n" + getString(R.string.section_levels)))
+        blackBar = slider(root, getString(R.string.level_black), prefs.getInt(KEY_BLACK, 0))
+        whiteBar = slider(root, getString(R.string.level_white), prefs.getInt(KEY_WHITE, 255))
 
-        root.addView(label("\nAppearance"))
+        root.addView(label("\n" + getString(R.string.section_appearance)))
         root.addView(RadioGroup(this).apply {
-            addOption(this, "Follow system", THEME_ID_BASE + 0)
-            addOption(this, "Light", THEME_ID_BASE + 1)
-            addOption(this, "Dark", THEME_ID_BASE + 2)
+            addOption(this, getString(R.string.theme_system), THEME_ID_BASE + 0)
+            addOption(this, getString(R.string.theme_light), THEME_ID_BASE + 1)
+            addOption(this, getString(R.string.theme_dark), THEME_ID_BASE + 2)
             check(THEME_ID_BASE + prefs.getInt(KEY_THEME, 0))
             setOnCheckedChangeListener { _, id ->
                 prefs.edit().putInt(KEY_THEME, id - THEME_ID_BASE).apply()
@@ -109,20 +107,20 @@ class MainActivity : Activity() {
         })
 
         root.addView(Button(this).apply {
-            text = "Accessibility settings"
+            text = getString(R.string.btn_accessibility)
             setOnClickListener { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
         })
 
-        root.addView(label("\nUpdates"))
-        updateStatus = TextView(this).apply { text = "Version ${version()}" }
+        root.addView(label("\n" + getString(R.string.section_updates)))
+        updateStatus = TextView(this).apply { text = getString(R.string.status_version, version()) }
         root.addView(updateStatus)
         updateButton = Button(this).apply {
-            text = "Check for updates"
+            text = getString(R.string.btn_check)
             setOnClickListener { onUpdateClicked() }
         }
         root.addView(updateButton)
         root.addView(android.widget.CheckBox(this).apply {
-            text = "Check automatically on launch"
+            text = getString(R.string.chk_autocheck)
             isChecked = prefs.getBoolean(KEY_AUTOCHECK, true)
             setOnCheckedChangeListener { _, on ->
                 prefs.edit().putBoolean(KEY_AUTOCHECK, on).apply()
@@ -147,14 +145,14 @@ class MainActivity : Activity() {
         val release = pending
         if (release == null) { checkForUpdate(silent = false); return }
         updateButton.isEnabled = false
-        updateStatus.text = "Downloading ${release.version}…"
+        updateStatus.text = getString(R.string.status_downloading, release.version, 0)
         Updater.download(
             this, release,
-            onProgress = { pct -> updateStatus.text = "Downloading ${release.version}… $pct%" },
+            onProgress = { pct -> updateStatus.text = getString(R.string.status_downloading, release.version, pct) },
             onDone = { ok, message ->
                 updateStatus.text = message
                 updateButton.isEnabled = true
-                if (!ok) updateButton.text = "Retry update"
+                if (!ok) updateButton.text = getString(R.string.btn_retry_update)
             },
         )
     }
@@ -167,8 +165,8 @@ class MainActivity : Activity() {
      */
     private fun checkForUpdate(silent: Boolean) {
         updateButton.isEnabled = false
-        updateButton.text = "Checking…"
-        updateStatus.text = "Contacting GitHub…"
+        updateButton.text = getString(R.string.btn_checking)
+        updateStatus.text = getString(R.string.status_contacting)
 
         Updater.check(
             this,
@@ -177,20 +175,20 @@ class MainActivity : Activity() {
                 updateButton.isEnabled = true
                 val now = timestamp()
                 if (release != null) {
-                    updateStatus.text = "Version ${release.version} is available  ·  $now"
-                    updateButton.text = "Download and install ${release.version}"
+                    updateStatus.text = getString(R.string.status_available, release.version, now)
+                    updateButton.text = getString(R.string.btn_install, release.version)
                 } else {
-                    updateStatus.text = "Up to date (${version()})  ·  checked $now"
-                    updateButton.text = "Check for updates"
+                    updateStatus.text = getString(R.string.status_uptodate, version(), now)
+                    updateButton.text = getString(R.string.btn_check)
                 }
             },
             onError = { message ->
                 updateButton.isEnabled = true
-                updateButton.text = "Retry check"
+                updateButton.text = getString(R.string.btn_retry_check)
                 val hint = if (message.contains("resolve host", true) ||
                     message.contains("Unable", true)
-                ) " — is Wi-Fi on?" else ""
-                updateStatus.text = "Check failed: $message$hint"
+                ) getString(R.string.status_wifi_hint) else ""
+                updateStatus.text = getString(R.string.status_check_failed, message, hint)
             },
         )
     }
@@ -265,20 +263,18 @@ class MainActivity : Activity() {
         when {
             service == null -> {
                 status.setTextColor(Color.rgb(200, 90, 60))
-                status.text = "Accessibility service is off.\nEnable \"Inkverse\" in " +
-                    "Accessibility settings — that is what allows a fully opaque overlay " +
-                    "that still lets touch through."
-                toggle.text = "Open accessibility settings"
+                status.text = getString(R.string.status_acc_off)
+                toggle.text = getString(R.string.btn_open_accessibility)
             }
             service.isActive -> {
                 status.setTextColor(Color.rgb(60, 130, 100))
-                status.text = "Running. Leave this app and the inverted view appears."
-                toggle.text = "STOP"
+                status.text = getString(R.string.status_running)
+                toggle.text = getString(R.string.btn_stop)
             }
             else -> {
                 status.setTextColor(Color.rgb(90, 110, 100))
-                status.text = "Ready."
-                toggle.text = "START"
+                status.text = getString(R.string.status_ready)
+                toggle.text = getString(R.string.btn_start)
             }
         }
     }

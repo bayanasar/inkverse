@@ -2,4 +2,47 @@
 <resources>
     <string name="app_name">Inkverse</string>
     <string name="acc_desc">Draws a trusted, fully opaque overlay showing an inverted copy of the app in front, while pen and touch pass straight through to it. Needs accessibility because only a trusted overlay may be opaque and non-touchable at the same time, and because window screenshots are the only capture on this device that cannot capture the overlay itself.</string>
+
+    <string name="hint_overlay">The overlay is opaque, so it hides itself while you are in this app and comes back when you leave. Pen and touch always pass through to the app underneath.</string>
+
+    <string name="section_mode">Mode</string>
+    <string name="mode_passthrough">Off / passthrough</string>
+    <string name="mode_luma">Grayscale invert  (best for E-Ink)</string>
+    <string name="mode_rgb">RGB invert  (photos go negative)</string>
+    <string name="mode_shaped">Grayscale invert + levels</string>
+
+    <string name="section_levels">Levels  (used by the “+ levels” mode)</string>
+    <string name="level_black">black point</string>
+    <string name="level_white">white point</string>
+
+    <string name="section_appearance">Appearance</string>
+    <string name="theme_system">Follow system</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+
+    <string name="section_updates">Updates</string>
+    <string name="btn_accessibility">Accessibility settings</string>
+    <string name="btn_open_accessibility">Open accessibility settings</string>
+    <string name="btn_start">START</string>
+    <string name="btn_stop">STOP</string>
+    <string name="btn_check">Check for updates</string>
+    <string name="btn_checking">Checking…</string>
+    <string name="btn_retry_check">Retry check</string>
+    <string name="btn_retry_update">Retry update</string>
+    <string name="btn_install">Download and install %1$s</string>
+    <string name="chk_autocheck">Check automatically on launch</string>
+
+    <string name="status_acc_off">Accessibility service is off.\nEnable “Inkverse” in Accessibility settings — that is what allows a fully opaque overlay that still lets touch through.</string>
+    <string name="status_running">Running. Leave this app and the inverted view appears.</string>
+    <string name="status_ready">Ready.</string>
+    <string name="status_version">Version %1$s</string>
+    <string name="status_contacting">Contacting GitHub…</string>
+    <string name="status_available">Version %1$s is available  ·  %2$s</string>
+    <string name="status_uptodate">Up to date (%1$s)  ·  checked %2$s</string>
+    <string name="status_check_failed">Check failed: %1$s%2$s</string>
+    <string name="status_wifi_hint"> — is Wi-Fi on?</string>
+    <string name="status_downloading">Downloading %1$s… %2$d%%</string>
+    <string name="status_confirm">Confirm the install when the system asks.</string>
+    <string name="toast_updated">Inkverse updated</string>
+    <string name="toast_update_failed">Update failed: %1$s</string>
 </resources>
