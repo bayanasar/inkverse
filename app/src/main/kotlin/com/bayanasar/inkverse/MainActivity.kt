@@ -25,6 +25,7 @@ class MainActivity : Activity() {
         const val KEY_MODE = "mode"
         const val KEY_BLACK = "black"
         const val KEY_WHITE = "white"
+        const val KEY_AUTOCHECK = "autocheck"
         const val THEME_ID_BASE = 1000
     }
 
@@ -34,6 +35,9 @@ class MainActivity : Activity() {
     private lateinit var modes: RadioGroup
     private lateinit var blackBar: SeekBar
     private lateinit var whiteBar: SeekBar
+    private lateinit var updateStatus: TextView
+    private lateinit var updateButton: Button
+    private var pending: Updater.Release? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         prefs = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -109,6 +113,26 @@ class MainActivity : Activity() {
             setOnClickListener { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
         })
 
+        root.addView(label("\nUpdates"))
+        updateStatus = TextView(this).apply {
+            text = "Version ${packageManager.getPackageInfo(packageName, 0).versionName}"
+        }
+        root.addView(updateStatus)
+        updateButton = Button(this).apply {
+            text = "Check for updates"
+            setOnClickListener { onUpdateClicked() }
+        }
+        root.addView(updateButton)
+        root.addView(android.widget.CheckBox(this).apply {
+            text = "Check automatically on launch"
+            isChecked = prefs.getBoolean(KEY_AUTOCHECK, true)
+            setOnCheckedChangeListener { _, on ->
+                prefs.edit().putBoolean(KEY_AUTOCHECK, on).apply()
+            }
+        })
+
+        if (prefs.getBoolean(KEY_AUTOCHECK, true)) checkForUpdate(silent = true)
+
         setContentView(ScrollView(this).apply {
             addView(
                 root,
@@ -119,6 +143,40 @@ class MainActivity : Activity() {
             )
         })
         refresh()
+    }
+
+    private fun onUpdateClicked() {
+        val release = pending
+        if (release == null) { checkForUpdate(silent = false); return }
+        updateButton.isEnabled = false
+        updateStatus.text = "Downloading ${release.version}…"
+        Updater.download(
+            this, release,
+            onProgress = { pct -> updateStatus.text = "Downloading ${release.version}… $pct%" },
+            onDone = { ok, message ->
+                updateStatus.text = message
+                updateButton.isEnabled = true
+                if (!ok) updateButton.text = "Retry update"
+            },
+        )
+    }
+
+    private fun checkForUpdate(silent: Boolean) {
+        if (!silent) updateStatus.text = "Checking…"
+        Updater.check(
+            this,
+            onResult = { release ->
+                pending = release
+                if (release != null) {
+                    updateStatus.text = "Version ${release.version} is available."
+                    updateButton.text = "Download and install ${release.version}"
+                } else if (!silent) {
+                    updateStatus.text =
+                        "Up to date (${packageManager.getPackageInfo(packageName, 0).versionName})."
+                }
+            },
+            onError = { message -> if (!silent) updateStatus.text = "Check failed: $message" },
+        )
     }
 
     /**

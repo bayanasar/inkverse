@@ -79,6 +79,16 @@ own controls stay readable.
 
 Requires Android 14+ (API 34) for `takeScreenshotOfWindow`.
 
+### Updating
+
+Inkverse updates itself from GitHub Releases: it checks on launch and offers the new
+version, installing through `PackageInstaller` rather than a `FileProvider` intent so
+the app keeps its zero dependencies. Turn the check off in the app if you would
+rather not have it phone GitHub.
+
+If you would rather a store handled it, [Obtainium](https://github.com/ImranR98/Obtainium)
+tracks this repo's releases with no extra work on either side.
+
 ## Notes for BOOX devices
 
 - Onyx **auto-freeze** disables sideloaded apps, which shows up as
@@ -121,9 +131,10 @@ and the overlay is a `TYPE_ACCESSIBILITY_OVERLAY` window owned by it. Neither ca
 expressed in Dart; a Flutter build would still need this same Kotlin underneath, plus
 a platform channel shuttling every captured bitmap in and out of the Dart VM.
 
-Tagging `v*` builds and publishes a signed APK. Without the `KEYSTORE_BASE64`,
-`KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD` secrets, CI signs with a throwaway
-key — installable, but upgrades over an older build will be refused.
+Tagging `v*` builds and publishes a signed APK. Releases from v0.1.2 on are signed
+with a stable key held in the repository secrets, so they install over one another;
+v0.1.0 and v0.1.1 were each signed with a throwaway key and have to be uninstalled
+first.
 
 ## Licence
 
