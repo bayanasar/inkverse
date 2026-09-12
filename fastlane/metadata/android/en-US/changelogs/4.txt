@@ -1,0 +1,2 @@
+Fixes the self-update flow: committing the install session did not show the system
+install prompt, so updates downloaded and then appeared to do nothing.

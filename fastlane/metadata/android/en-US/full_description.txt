@@ -1,0 +1,34 @@
+Turns white-paper-black-ink pages into black-paper-white-ink after dark, on BOOX
+e-ink tablets — without giving up the reader you already use.
+
+Every standard way of inverting an Android screen is inert on these devices. The
+accessibility "Colour inversion" toggle, the SurfaceFlinger colour matrix and the
+daltonizer all accept the call and leave the panel unchanged, because the E-Ink
+display path never applies the transform. Onyx's own per-app image settings have no
+inversion of any kind.
+
+So Inkverse produces already-inverted pixels as ordinary app content. It screenshots
+the window in front, runs it through a colour matrix, and draws the result in a
+fullscreen overlay that pen and touch pass straight through. Your reader keeps
+working exactly as it did — annotations, stylus, dictionary, everything — only the
+pixels change.
+
+Modes:
+
+* Grayscale invert — the right choice on Kaleido colour e-ink, where inverting RGB
+  produces muddy casts
+* RGB invert — keeps hue; photographs become negatives
+* Grayscale invert with black and white point levels, for scans with a heavy grey
+  background
+* Passthrough, for checking the pipeline is neutral
+
+The overlay hides itself while you are in Inkverse, so its own controls stay
+readable, and comes back when you leave.
+
+Needs the accessibility permission for two specific reasons, both structural: only a
+window owned by an accessibility service may be fully opaque and non-touchable at
+the same time, and per-window screenshots are the only capture on these devices that
+cannot end up capturing the overlay itself.
+
+No dependencies, no analytics, no network access except the optional update check
+against GitHub Releases, which can be turned off.
