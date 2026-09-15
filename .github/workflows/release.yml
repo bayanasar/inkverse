@@ -19,7 +19,12 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      # Without this the action installs the legacy `tools` package, which Google
+      # has removed from the repository — sdkmanager then exits 1 and fails the job.
+      # Gradle fetches the platform and build-tools it needs by itself.
       - uses: android-actions/setup-android@v3
+        with:
+          packages: ''
 
       - uses: gradle/actions/setup-gradle@v4
         with:
