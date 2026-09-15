@@ -3,6 +3,7 @@ package com.bayanasar.inkverse
 import android.accessibilityservice.AccessibilityService
 import android.graphics.Bitmap
 import android.graphics.PixelFormat
+import android.graphics.Rect
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
@@ -33,6 +34,11 @@ const val TAG = "Inkverse"
  * tapjacking protection, which blends the inverted image back into the original
  * underneath. A trusted window is exempt, so it can be opaque and still let the pen
  * through.
+ *
+ * Capturing per window means the screen has to be reassembled per window too. Every
+ * visible window is captured and drawn at its own bounds, back to front, because
+ * touch still goes to the real thing underneath: a dialog painted anywhere other
+ * than where it actually is, is a dialog nobody can hit.
  */
 class InvertAccessibilityService : AccessibilityService() {
 
@@ -40,12 +46,18 @@ class InvertAccessibilityService : AccessibilityService() {
         /** Platform floor is ~333ms between screenshots; stay above it. */
         private const val MIN_INTERVAL_MS = 400L
 
+        /** Plenty for an app, its dialog, the bars and an IME. */
+        private const val MAX_LAYERS = 6
+
         @Volatile
         private var instance: InvertAccessibilityService? = null
 
         fun get(): InvertAccessibilityService? = instance
         val isRunning: Boolean get() = instance != null
     }
+
+    /** One window to mirror: what to capture, and where on screen it really sits. */
+    private class Target(val id: Int, val bounds: Rect)
 
     private val ui = Handler(Looper.getMainLooper())
     private val executor = Executor { ui.post(it) }
@@ -61,10 +73,29 @@ class InvertAccessibilityService : AccessibilityService() {
     private var shotPending = false
     private var debounceMs = 250L
 
+    /** Last good image per window id, so a refused capture does not blank a layer. */
+    private val cache = HashMap<Int, Bitmap>()
+    private var batch = 0
+
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
         Log.i(TAG, "connected; screenshot-of-window path available")
+
+        // Coming back from a kill — BOOX auto-freeze, or plain memory pressure —
+        // this callback is the only thing that runs. Without restoring here the
+        // user has to open the app and press START again every single time.
+        val prefs = Prefs.of(this)
+        if (prefs.getBoolean(Prefs.ACTIVE, false)) {
+            Log.i(TAG, "previous session was active; restoring overlay")
+            setTarget(null)
+            start()
+            setMode(prefs.getInt(Prefs.MODE, OverlayView.MODE_LUMA_INVERT))
+            setLevels(
+                Prefs.blackPoint(prefs.getInt(Prefs.BLACK, 0)),
+                Prefs.whitePoint(prefs.getInt(Prefs.WHITE, 255)),
+            )
+        }
     }
 
     // ------------------------------------------------------------------ control
@@ -83,6 +114,7 @@ class InvertAccessibilityService : AccessibilityService() {
     }
 
     fun start() = ui.post {
+        remember(true)
         if (overlay != null) return@post
         val wm = getSystemService(WindowManager::class.java).also { windowManager = it }
         val params = WindowManager.LayoutParams(
@@ -106,6 +138,17 @@ class InvertAccessibilityService : AccessibilityService() {
     }
 
     fun stop() = ui.post {
+        remember(false)
+        teardown()
+    }
+
+    /**
+     * Take the overlay down without touching the stored intent.
+     *
+     * Unbinding is not the user saying stop — it is usually the user being frozen
+     * out — so the flag that drives the restore above has to survive it.
+     */
+    private fun teardown() {
         isActive = false
         overlay?.let { view ->
             runCatching { windowManager?.removeViewImmediate(view) }
@@ -113,8 +156,13 @@ class InvertAccessibilityService : AccessibilityService() {
         }
         overlay = null
         hidden = false
+        cache.values.forEach { it.recycle() }
+        cache.clear()
         Log.i(TAG, "overlay removed")
     }
+
+    private fun remember(active: Boolean) =
+        Prefs.of(this).edit().putBoolean(Prefs.ACTIVE, active).apply()
 
     /** Our own UI is under an opaque overlay, so take it down while the user is in it. */
     private fun setHidden(hide: Boolean) {
@@ -126,11 +174,16 @@ class InvertAccessibilityService : AccessibilityService() {
 
     // ------------------------------------------------------------------ capture
 
-    /** Accessibility window id to mirror, or -1 when there is nothing to show. */
-    private fun findTargetWindowId(): Int {
-        val windows = windows ?: run { Log.w(TAG, "getWindows() null"); return -1 }
-        var match = -1
-        var activeFallback = -1
+    /**
+     * Every window worth mirroring, back to front.
+     *
+     * Ordered by layer rather than picked by "is active" because a dialog does not
+     * replace the app behind it, it sits on top of it — and each one has to be
+     * drawn where it really is.
+     */
+    private fun collectTargets(): List<Target> {
+        val windows = windows ?: run { Log.w(TAG, "getWindows() null"); return emptyList() }
+        val wanted = ArrayList<AccessibilityWindowInfo>(windows.size)
         var selfInFront = false
 
         for (window in windows) {
@@ -142,14 +195,27 @@ class InvertAccessibilityService : AccessibilityService() {
             }
             if (window.type == AccessibilityWindowInfo.TYPE_ACCESSIBILITY_OVERLAY) continue
 
-            val wanted = targetPackage?.let { it == pkg } ?: window.isActive
-            if (wanted && match < 0) match = window.id
-            if (window.isActive && activeFallback < 0) activeFallback = window.id
+            // A pinned target narrows the app windows only. The bars and the IME are
+            // part of the screen being looked at whoever owns them.
+            val pinned = targetPackage
+            if (pinned != null && pkg != null && pkg != pinned &&
+                window.type == AccessibilityWindowInfo.TYPE_APPLICATION
+            ) continue
+
+            wanted += window
         }
 
         setHidden(selfInFront)
-        if (selfInFront) return -1
-        return if (match >= 0) match else activeFallback
+        if (selfInFront) return emptyList()
+
+        wanted.sortBy { it.layer }
+        val out = ArrayList<Target>(wanted.size)
+        for (window in wanted) {
+            val bounds = Rect().also { window.getBoundsInScreen(it) }
+            if (bounds.isEmpty) continue
+            out += Target(window.id, bounds)
+        }
+        return if (out.size <= MAX_LAYERS) out else out.subList(out.size - MAX_LAYERS, out.size)
     }
 
     private fun requestShot() {
@@ -166,31 +232,76 @@ class InvertAccessibilityService : AccessibilityService() {
         }
         lastShotMs = now
 
-        val windowId = findTargetWindowId()
-        if (windowId < 0) return
+        val targets = collectTargets()
+        if (targets.isEmpty()) return
+        capture(targets)
+    }
 
-        runCatching {
-            takeScreenshotOfWindow(windowId, executor, object : TakeScreenshotCallback {
-                override fun onSuccess(result: ScreenshotResult) {
-                    val buffer = result.hardwareBuffer
-                    try {
-                        val wrapped = Bitmap.wrapHardwareBuffer(buffer, result.colorSpace)
-                        // Copy off the hardware buffer so it can be released, and so
-                        // probe()'s getPixel() works.
-                        wrapped?.copy(Bitmap.Config.ARGB_8888, false)
-                            ?.let { overlay?.setFrame(it) }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "wrap failed: $e")
-                    } finally {
-                        buffer.close()
+    /** Fire one screenshot per target and publish the set once they have all landed. */
+    private fun capture(targets: List<Target>) {
+        val id = ++batch
+        val shots = arrayOfNulls<Bitmap>(targets.size)
+        var outstanding = targets.size
+
+        fun settle(index: Int, bitmap: Bitmap?) {
+            if (id != batch) { bitmap?.recycle(); return }   // a newer batch overtook us
+            shots[index] = bitmap
+            if (--outstanding == 0) publish(targets, shots)
+        }
+
+        targets.forEachIndexed { index, target ->
+            runCatching {
+                takeScreenshotOfWindow(target.id, executor, object : TakeScreenshotCallback {
+                    override fun onSuccess(result: ScreenshotResult) {
+                        val buffer = result.hardwareBuffer
+                        val copy = try {
+                            // Copy off the hardware buffer so it can be released, and
+                            // so probe()'s getPixel() works.
+                            Bitmap.wrapHardwareBuffer(buffer, result.colorSpace)
+                                ?.copy(Bitmap.Config.ARGB_8888, false)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "wrap failed: $e")
+                            null
+                        } finally {
+                            buffer.close()
+                        }
+                        settle(index, copy)
                     }
-                }
 
-                override fun onFailure(errorCode: Int) {
-                    Log.w(TAG, "screenshot failed, code=$errorCode")
-                }
-            })
-        }.onFailure { Log.e(TAG, "takeScreenshotOfWindow threw: $it") }
+                    override fun onFailure(errorCode: Int) {
+                        Log.w(TAG, "screenshot of window ${target.id} failed, code=$errorCode")
+                        settle(index, null)
+                    }
+                })
+            }.onFailure {
+                Log.e(TAG, "takeScreenshotOfWindow threw: $it")
+                settle(index, null)
+            }
+        }
+    }
+
+    private fun publish(targets: List<Target>, shots: Array<Bitmap?>) {
+        val layers = ArrayList<OverlayView.Layer>(targets.size)
+        val fresh = HashMap<Int, Bitmap>(targets.size)
+
+        targets.forEachIndexed { index, target ->
+            // A window the platform refused this round — usually the screenshot
+            // interval — keeps its last image rather than punching a black hole
+            // through the composite.
+            val bitmap = shots[index] ?: cache[target.id] ?: return@forEachIndexed
+            fresh[target.id] = bitmap
+            layers += OverlayView.Layer(bitmap, target.bounds)
+        }
+
+        // Safe here and nowhere else: publishing and drawing are both on this thread,
+        // so nothing that survives into the new set is in flight.
+        for ((windowId, bitmap) in cache) {
+            if (fresh[windowId] !== bitmap) bitmap.recycle()
+        }
+        cache.clear()
+        cache.putAll(fresh)
+
+        overlay?.setLayers(layers)
     }
 
     // ------------------------------------------------------------------- events
@@ -213,7 +324,7 @@ class InvertAccessibilityService : AccessibilityService() {
     override fun onInterrupt() = Unit
 
     override fun onUnbind(intent: android.content.Intent?): Boolean {
-        stop()
+        teardown()
         instance = null
         return super.onUnbind(intent)
     }

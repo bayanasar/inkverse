@@ -15,6 +15,9 @@
     <string name="level_black">black point</string>
     <string name="level_white">white point</string>
 
+    <string name="section_boox">On BOOX devices</string>
+    <string name="hint_boox">BOOX auto-freeze disables sideloaded apps after a couple of minutes in the background. Freezing Inkverse kills the overlay — the screen goes back to light — and also drops it from the Accessibility list, which is why it has to be enabled again by hand every time. Exclude Inkverse from auto-freeze in the BOOX app manager (long-press the app, turn off auto-freeze / add it to the whitelist) and both stop happening.</string>
+
     <string name="section_appearance">Appearance</string>
     <string name="theme_system">Follow system</string>
     <string name="theme_light">Light</string>
@@ -33,6 +36,7 @@
     <string name="chk_autocheck">Check automatically on launch</string>
 
     <string name="status_acc_off">Accessibility service is off.\nEnable “Inkverse” in Accessibility settings — that is what allows a fully opaque overlay that still lets touch through.</string>
+    <string name="status_acc_lost">Inkverse was inverting, and its accessibility service is gone.\nNothing turned it off: BOOX auto-freeze disabled the app, which also removes it from the Accessibility list. Enable it again below, then exclude Inkverse from auto-freeze so it stops happening.</string>
     <string name="status_running">Running. Leave this app and the inverted view appears.</string>
     <string name="status_ready">Ready.</string>
     <string name="status_version">Version %1$s</string>

@@ -14,6 +14,9 @@
     <string name="level_black">黑場</string>
     <string name="level_white">白場</string>
 
+    <string name="section_boox">BOOX 裝置注意</string>
+    <string name="hint_boox">BOOX 的「自動凍結」會在應用退到背景約兩分鐘後把側載應用停用。Inkverse 被凍結時覆蓋層會消失（螢幕變回淺色），同時也會被系統從無障礙清單中移除 —— 這就是為什麼每次都要手動重新啟用。請在 BOOX 應用管理中把 Inkverse 排除在自動凍結之外（長按應用，關閉自動凍結／加入白名單），兩個問題都會一併消失。</string>
+
     <string name="section_appearance">外觀</string>
     <string name="theme_system">跟隨系統</string>
     <string name="theme_light">淺色</string>
@@ -32,6 +35,7 @@
     <string name="chk_autocheck">啟動時自動檢查</string>
 
     <string name="status_acc_off">無障礙服務未啟用。\n請在「無障礙設定」中啟用 Inkverse —— 只有這樣，覆蓋層才能既完全不透明又讓觸控穿透。</string>
+    <string name="status_acc_lost">Inkverse 原本正在反色，但無障礙服務已經消失。\n這不是誰關掉的：BOOX 自動凍結停用了本程式，連帶把它從無障礙清單移除。請在下方重新啟用，並把 Inkverse 排除在自動凍結之外，以免再次發生。</string>
     <string name="status_running">執行中。離開本程式即可看到反色畫面。</string>
     <string name="status_ready">已就緒。</string>
     <string name="status_version">版本 %1$s</string>

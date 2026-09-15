@@ -63,6 +63,15 @@ The platform rate-limits these screenshots to roughly one per 333 ms. On E-Ink t
 is not a limitation: one capture per page turn is all a reader needs, and drawing
 more often just makes the panel flash.
 
+Capturing per window means the screen has to be **reassembled** per window. Every
+visible window is captured and drawn at its own `getBoundsInScreen()`, back to front
+by layer, so a dialog lands where the dialog actually is. Scaling one capture to fill
+the overlay is the tempting shortcut and it is wrong in a way that is invisible until
+something small opens: touch still goes to the real window underneath, so a popup
+drawn fullscreen takes its taps at its original size and position and nothing under
+the pen can be hit. A window whose capture is refused in a given round — usually the
+interval above — keeps its previous image rather than leaving a black hole.
+
 ## Modes
 
 - **Grayscale invert** — default, and the right choice on Kaleido colour e-ink, where
@@ -93,9 +102,34 @@ tracks this repo's releases with no extra work on either side.
 
 ## Notes for BOOX devices
 
-- Onyx **auto-freeze** disables sideloaded apps, which shows up as
-  `Activity class ... does not exist`. Exclude Inkverse from auto-freeze in the BOOX
-  app manager, or run `adb shell pm enable com.bayanasar.inkverse`.
+- Onyx **auto-freeze** disables sideloaded apps a couple of minutes after they leave
+  the foreground, which shows up as `Activity class ... does not exist`. It is also
+  the single cause of the two symptoms that look unrelated: the screen reverting to
+  light, and having to re-enable Inkverse under Accessibility every session.
+  Disabling the package kills the process, so the overlay goes; and
+  `AccessibilityManagerService` drops a disabled package from
+  `enabled_accessibility_services` **permanently** — re-enabling the package does not
+  put it back, which is why the toggle has to be found again by hand:
+
+  ```sh
+  $ adb shell pm disable-user --user 0 com.bayanasar.inkverse
+  $ adb shell settings get secure enabled_accessibility_services
+  com.onyx.floatingbutton/.service.FloatButtonAccessibilityService   # Inkverse gone
+  $ adb shell pm enable com.bayanasar.inkverse                        # and not coming back
+  ```
+
+  Exclude Inkverse from auto-freeze in the BOOX app manager. To recover a session
+  without it, both halves have to be restored:
+
+  ```sh
+  adb shell pm enable com.bayanasar.inkverse
+  adb shell settings put secure enabled_accessibility_services \
+    "com.onyx.floatingbutton/.service.FloatButtonAccessibilityService:com.bayanasar.inkverse/.InvertAccessibilityService"
+  ```
+
+  A kill that leaves the service enabled — memory pressure, an install — needs no
+  hand-holding: the overlay records that it was up and restores itself from
+  `onServiceConnected()`.
 - Onyx's own EAC post-processing still runs underneath. Its per-app
   `ditherThreshold` pushes anything above the threshold to pure white, so very light
   inverted text can disappear; the levels mode exists partly to work around that.
@@ -108,15 +142,21 @@ The overlay is opaque, so when a mode renders badly its on-screen controls are
 exactly what you cannot see. Everything is therefore also driveable over adb:
 
 ```sh
-adb shell am broadcast -a com.bayanasar.inkverse.DIAG -f 0x01000020 --es cmd start --es pkg '*'
+adb shell am broadcast -a com.bayanasar.inkverse.DIAG -f 0x01000020 --es cmd start --es pkg '\*'
 adb shell am broadcast -a com.bayanasar.inkverse.DIAG -f 0x01000020 --es cmd mode --ei shader 2
 adb shell am broadcast -a com.bayanasar.inkverse.DIAG -f 0x01000020 --es cmd probe
 adb shell am broadcast -a com.bayanasar.inkverse.DIAG -f 0x01000020 --es cmd stop
 ```
 
-`probe` logs the luminance of the captured frame at five points, which is how you
-tell "the shader is wrong" from "the capture is empty" without trusting your eyes on
-a washed-out panel.
+The `'\*'` really does need the backslash: `am` runs inside the device's shell, which
+globs a bare `*` against its own working directory and turns the command into a
+broadcast restricted to a package named after whatever it matched.
+
+`probe` logs the layer map and the luminance of the largest capture at five points,
+which is how you tell "the shader is wrong" from "the capture is empty" without
+trusting your eyes on a washed-out panel. Each layer prints as `bounds<-bitmap`; the
+two disagreeing means pixels are being drawn somewhere other than where the window
+taking the taps is.
 
 ## Building
 

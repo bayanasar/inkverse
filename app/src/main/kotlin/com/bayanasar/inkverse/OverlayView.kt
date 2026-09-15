@@ -12,7 +12,12 @@ import android.view.View
 import kotlin.math.max
 
 /**
- * Draws the captured window bitmap through a colour matrix.
+ * Draws the captured windows through a colour matrix, back to front.
+ *
+ * Each layer is drawn at the bounds its window really occupies. Stretching a single
+ * capture to fill the overlay looked fine until something small opened: a dialog
+ * blown up to fullscreen still takes its taps at its original size and position, so
+ * the controls under the pen are never the ones being drawn there.
  *
  * No GL. Window screenshots arrive as Bitmaps, so a ColorMatrixColorFilter on the
  * ordinary draw path is enough — which also sidesteps the EGL alpha config that made
@@ -32,9 +37,11 @@ class OverlayView(context: Context) : View(context) {
         private const val LB = -0.114f
     }
 
+    /** One captured window: its pixels, and where on screen they belong. */
+    class Layer(val bitmap: Bitmap, val bounds: Rect)
+
     private val paint = Paint(Paint.FILTER_BITMAP_FLAG)
-    private val dst = Rect()
-    private var frame: Bitmap? = null
+    private var layers: List<Layer> = emptyList()
 
     var mode: Int = MODE_LUMA_INVERT
         set(value) {
@@ -51,9 +58,12 @@ class OverlayView(context: Context) : View(context) {
         applyFilter()
     }
 
-    fun setFrame(bitmap: Bitmap) {
-        frame?.takeIf { it !== bitmap }?.recycle()
-        frame = bitmap
+    /**
+     * Recycling is the service's job, not this view's: a bitmap can outlive one set
+     * of layers when its window was captured and the rest of the screen was not.
+     */
+    fun setLayers(layers: List<Layer>) {
+        this.layers = layers
         postInvalidate()
     }
 
@@ -104,31 +114,42 @@ class OverlayView(context: Context) : View(context) {
     }
 
     /**
-     * Luminance of the captured frame at five points, for logcat.
+     * The layer map, plus luminance at five points, for logcat.
      *
      * The overlay is opaque, so when something renders wrong the on-screen controls
      * are exactly what you cannot see. These numbers separate "the filter is wrong"
      * from "the capture is empty" without trusting your eyes on a washed-out panel.
+     *
+     * Each layer prints as bounds<-bitmap. The two sizes disagreeing is the whole
+     * class of bug this composite exists to avoid: pixels drawn somewhere other than
+     * where the window taking the taps actually is.
      */
     fun probe(): String {
-        val bmp = frame
-        if (bmp == null || bmp.isRecycled) return "frame=none"
+        if (layers.isEmpty()) return "layers=none"
+        val map = layers.joinToString(" ") { layer ->
+            val b = layer.bounds
+            "[${b.left},${b.top}-${b.right},${b.bottom}<-${layer.bitmap.width}x${layer.bitmap.height}]"
+        }
+        // Sample the biggest layer: the system's 1px strips say nothing about the filter.
+        val bmp = layers.filterNot { it.bitmap.isRecycled }
+            .maxByOrNull { it.bounds.width().toLong() * it.bounds.height() }?.bitmap
+            ?: return "layers=${layers.size} $map (all recycled)"
         val points = listOf(0.15f to 0.2f, 0.35f to 0.4f, 0.5f to 0.5f, 0.65f to 0.6f, 0.85f to 0.8f)
         val samples = points.joinToString(" ") { (fx, fy) ->
             val px = bmp.getPixel((bmp.width * fx).toInt(), (bmp.height * fy).toInt())
             val luma = (Color.red(px) * 299 + Color.green(px) * 587 + Color.blue(px) * 114) / 1000
             "(${(fx * 100).toInt()}%,${(fy * 100).toInt()}%)=$luma"
         }
-        return "frame=${bmp.width}x${bmp.height} mode=$mode luma@ $samples"
+        return "layers=${layers.size} $map mode=$mode luma@ $samples"
     }
 
     override fun onDraw(canvas: Canvas) {
-        val bmp = frame
-        if (bmp == null || bmp.isRecycled) {
-            canvas.drawColor(Color.BLACK)
-            return
+        // Black, not the un-inverted screen: anything no captured window covers is a
+        // gap in the composite, and on an inverted page black is the quiet answer.
+        canvas.drawColor(Color.BLACK)
+        for (layer in layers) {
+            if (layer.bitmap.isRecycled) continue
+            canvas.drawBitmap(layer.bitmap, null, layer.bounds, paint)
         }
-        dst.set(0, 0, width, height)
-        canvas.drawBitmap(bmp, null, dst, paint)
     }
 }

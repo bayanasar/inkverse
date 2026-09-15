@@ -1,7 +1,6 @@
 package com.bayanasar.inkverse
 
 import android.app.Activity
-import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.res.Configuration
@@ -20,12 +19,6 @@ import android.widget.TextView
 class MainActivity : Activity() {
 
     private companion object {
-        const val PREFS = "inkverse"
-        const val KEY_THEME = "theme"     // 0 system, 1 light, 2 dark
-        const val KEY_MODE = "mode"
-        const val KEY_BLACK = "black"
-        const val KEY_WHITE = "white"
-        const val KEY_AUTOCHECK = "autocheck"
         const val THEME_ID_BASE = 1000
     }
 
@@ -40,8 +33,8 @@ class MainActivity : Activity() {
     private var pending: Updater.Release? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        prefs = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        applyTheme(prefs.getInt(KEY_THEME, 0))
+        prefs = Prefs.of(this)
+        applyTheme(prefs.getInt(Prefs.THEME, 0))
         super.onCreate(savedInstanceState)
 
         val pad = (16 * resources.displayMetrics.density).toInt()
@@ -82,29 +75,32 @@ class MainActivity : Activity() {
             addOption(this, getString(R.string.mode_luma), OverlayView.MODE_LUMA_INVERT)
             addOption(this, getString(R.string.mode_rgb), OverlayView.MODE_RGB_INVERT)
             addOption(this, getString(R.string.mode_shaped), OverlayView.MODE_SHAPED)
-            check(prefs.getInt(KEY_MODE, OverlayView.MODE_LUMA_INVERT))
+            check(prefs.getInt(Prefs.MODE, OverlayView.MODE_LUMA_INVERT))
             setOnCheckedChangeListener { _, id ->
-                prefs.edit().putInt(KEY_MODE, id).apply()
+                prefs.edit().putInt(Prefs.MODE, id).apply()
                 InvertAccessibilityService.get()?.setMode(id)
             }
         }
         root.addView(modes)
 
         root.addView(label("\n" + getString(R.string.section_levels)))
-        blackBar = slider(root, getString(R.string.level_black), prefs.getInt(KEY_BLACK, 0))
-        whiteBar = slider(root, getString(R.string.level_white), prefs.getInt(KEY_WHITE, 255))
+        blackBar = slider(root, getString(R.string.level_black), prefs.getInt(Prefs.BLACK, 0))
+        whiteBar = slider(root, getString(R.string.level_white), prefs.getInt(Prefs.WHITE, 255))
 
         root.addView(label("\n" + getString(R.string.section_appearance)))
         root.addView(RadioGroup(this).apply {
             addOption(this, getString(R.string.theme_system), THEME_ID_BASE + 0)
             addOption(this, getString(R.string.theme_light), THEME_ID_BASE + 1)
             addOption(this, getString(R.string.theme_dark), THEME_ID_BASE + 2)
-            check(THEME_ID_BASE + prefs.getInt(KEY_THEME, 0))
+            check(THEME_ID_BASE + prefs.getInt(Prefs.THEME, 0))
             setOnCheckedChangeListener { _, id ->
-                prefs.edit().putInt(KEY_THEME, id - THEME_ID_BASE).apply()
+                prefs.edit().putInt(Prefs.THEME, id - THEME_ID_BASE).apply()
                 recreate()
             }
         })
+
+        root.addView(label("\n" + getString(R.string.section_boox)))
+        root.addView(TextView(this).apply { text = getString(R.string.hint_boox) })
 
         root.addView(Button(this).apply {
             text = getString(R.string.btn_accessibility)
@@ -121,13 +117,13 @@ class MainActivity : Activity() {
         root.addView(updateButton)
         root.addView(android.widget.CheckBox(this).apply {
             text = getString(R.string.chk_autocheck)
-            isChecked = prefs.getBoolean(KEY_AUTOCHECK, true)
+            isChecked = prefs.getBoolean(Prefs.AUTOCHECK, true)
             setOnCheckedChangeListener { _, on ->
-                prefs.edit().putBoolean(KEY_AUTOCHECK, on).apply()
+                prefs.edit().putBoolean(Prefs.AUTOCHECK, on).apply()
             }
         })
 
-        if (prefs.getBoolean(KEY_AUTOCHECK, true)) checkForUpdate(silent = true)
+        if (prefs.getBoolean(Prefs.AUTOCHECK, true)) checkForUpdate(silent = true)
 
         setContentView(ScrollView(this).apply {
             addView(
@@ -242,14 +238,14 @@ class MainActivity : Activity() {
 
     private fun push(service: InvertAccessibilityService) {
         prefs.edit()
-            .putInt(KEY_BLACK, blackBar.progress)
-            .putInt(KEY_WHITE, whiteBar.progress)
+            .putInt(Prefs.BLACK, blackBar.progress)
+            .putInt(Prefs.WHITE, whiteBar.progress)
             .apply()
         service.setTarget(null)                       // follow whatever is in front
         service.setMode(modes.checkedRadioButtonId)
         service.setLevels(
-            blackBar.progress / 255f * 0.5f,
-            0.5f + whiteBar.progress / 255f * 0.5f,
+            Prefs.blackPoint(blackBar.progress),
+            Prefs.whitePoint(whiteBar.progress),
         )
     }
 
@@ -263,7 +259,12 @@ class MainActivity : Activity() {
         when {
             service == null -> {
                 status.setTextColor(Color.rgb(200, 90, 60))
-                status.text = getString(R.string.status_acc_off)
+                // The overlay was up and the service is gone: nobody turned it off,
+                // so say what actually happened rather than "please enable it".
+                status.text = getString(
+                    if (prefs.getBoolean(Prefs.ACTIVE, false)) R.string.status_acc_lost
+                    else R.string.status_acc_off
+                )
                 toggle.text = getString(R.string.btn_open_accessibility)
             }
             service.isActive -> {
